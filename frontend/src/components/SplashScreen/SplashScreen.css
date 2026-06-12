@@ -1,0 +1,154 @@
+/* Splash Screen Styles */
+.splash-screen {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.splash-screen__background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.splash-screen__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.splash-screen__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(15, 42, 77, 0.7) 0%, rgba(30, 58, 100, 0.5) 100%);
+  z-index: 1;
+}
+
+.splash-screen__content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  display: flex;
+  align-items: center;
+}
+
+.splash-screen__text {
+  color: white;
+  flex: 1;
+  max-width: 600px;
+}
+
+.splash-screen__welcome {
+  font-size: 18px;
+  font-weight: 300;
+  margin: 0 0 16px 0;
+  opacity: 0.9;
+  letter-spacing: 1px;
+}
+
+.splash-screen__title {
+  font-size: 56px;
+  font-weight: 700;
+  margin: 0 0 24px 0;
+  line-height: 1.2;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.splash-screen__tagline {
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 0 0 48px 0;
+  opacity: 0.95;
+  max-width: 500px;
+}
+
+.splash-screen__features {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+}
+
+.feature__icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2;
+  color: #00d4ff;
+  flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .splash-screen {
+    min-height: auto;
+    padding: 40px 20px;
+  }
+
+  .splash-screen__content {
+    padding: 40px 20px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .splash-screen__title {
+    font-size: 40px;
+  }
+
+  .splash-screen__tagline {
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
+
+  .splash-screen__features {
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .feature {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .splash-screen__content {
+    padding: 30px 16px;
+  }
+
+  .splash-screen__title {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+
+  .splash-screen__tagline {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .splash-screen__features {
+    gap: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
