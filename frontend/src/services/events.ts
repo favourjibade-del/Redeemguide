@@ -11,11 +11,16 @@ export interface Event {
   start_time: string
   end_time: string
   expected_attendance?: number
+  current_attendees?: number
   image?: string
   speaker_names?: string[]
+  tags?: string[]
+  agenda?: any[]
   registration_url?: string
   is_free: boolean
   ticket_price?: number
+  requires_registration?: boolean
+  max_capacity?: number
 }
 
 export interface EventAttendee {
@@ -37,8 +42,8 @@ export interface EventNotification {
 
 class EventService {
   async getEvents(filters?: any): Promise<Event[]> {
-    const response = await apiClient.get<{ results: Event[] }>('/events/', { params: filters })
-    return response.data.results
+    const response = await apiClient.get<Event[] | { results: Event[] }>('/events/', { params: filters })
+    return Array.isArray(response.data) ? response.data : response.data.results
   }
 
   async getEvent(id: string): Promise<Event> {
@@ -54,6 +59,20 @@ class EventService {
     return this.getEvents({ status: 'live' })
   }
 
+  async createEvent(event: Partial<Event>): Promise<Event> {
+    const response = await apiClient.post<Event>('/events/', event)
+    return response.data
+  }
+
+  async updateEvent(id: string, event: Partial<Event>): Promise<Event> {
+    const response = await apiClient.patch<Event>(`/events/${id}/`, event)
+    return response.data
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    await apiClient.delete(`/events/${id}/`)
+  }
+
   async searchEvents(query: string): Promise<Event[]> {
     return this.getEvents({ search: query })
   }
@@ -67,10 +86,10 @@ class EventService {
   }
 
   async getMyRegistrations(): Promise<EventAttendee[]> {
-    const response = await apiClient.get<{ results: EventAttendee[] }>('/event-attendees/', {
+    const response = await apiClient.get<EventAttendee[] | { results: EventAttendee[] }>('/event-attendees/', {
       params: { status: 'registered' }
     })
-    return response.data.results
+    return Array.isArray(response.data) ? response.data : response.data.results
   }
 
   async checkInToEvent(attendeeId: string): Promise<EventAttendee> {

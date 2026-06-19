@@ -26,6 +26,8 @@ export interface User {
   first_name: string
   last_name: string
   user_type: string
+  is_staff: boolean
+  is_superuser: boolean
   profile_picture?: string
   phone_number?: string
 }

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents, LayersControl, LayerGroup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { Location, locationService } from '../services/locations'
+import { Location, Route, locationService } from '../services/locations'
 import 'leaflet/dist/leaflet.css'
 
 const defaultCenter: [number, number] = [6.8126, 3.4446]
@@ -15,6 +15,8 @@ const markerIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 })
+
+const POLL_INTERVAL_MS = 30000
 
 const calculateTravelTime = (distanceInMeters: number) => {
   // Average walking speed: 1.4 meters per second (approx 5 km/h)
@@ -44,6 +46,16 @@ const emptyForm = {
   business_website: ''
 }
 
+type RoutePoint = NonNullable<Route['waypoints']>[number]
+
+const routePointToLatLng = (point: RoutePoint): [number, number] | null => {
+  if (Array.isArray(point) && point.length >= 2) return [Number(point[0]), Number(point[1])]
+  if (!point || typeof point !== 'object') return null
+  if ('latitude' in point && 'longitude' in point) return [Number(point.latitude), Number(point.longitude)]
+  if ('lat' in point && 'lng' in point) return [Number(point.lat), Number(point.lng)]
+  return null
+}
+
 function NavigationBounder({ points }: { points: [number, number][] }) {
   const map = useMap()
   useEffect(() => {
@@ -55,6 +67,7 @@ function NavigationBounder({ points }: { points: [number, number][] }) {
 
 export default function Map() {
   const [locations, setLocations] = useState<Location[]>([])
+  const [routes, setRoutes] = useState<Route[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +76,7 @@ export default function Map() {
 
   // Navigation & Search State
   const [searchQuery, setSearchQuery] = useState('')
-  const [navigationPath, setNavigationPath] = useState<[[number, number], [number, number]] | null>(null)
+  const [navigationPath, setNavigationPath] = useState<[number, number][] | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
   const [showStartPicker, setShowStartPicker] = useState(false)
   const [pendingDestination, setPendingDestination] = useState<Location | null>(null)
@@ -76,20 +89,44 @@ export default function Map() {
   }, [locations])
 
   useEffect(() => {
-    loadLocations()
+    let mounted = true
+
+    const loadRealtimeData = async () => {
+      await loadLocations(mounted)
+      await loadRoutes(mounted)
+    }
+
+    loadRealtimeData()
+    const timer = window.setInterval(loadRealtimeData, POLL_INTERVAL_MS)
+
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
+    }
   }, [])
 
-  const loadLocations = async () => {
+  const loadLocations = async (mounted = true) => {
     try {
-      setLoading(true)
-      setError(null)
+      if (mounted) {
+        setLoading(true)
+        setError(null)
+      }
       const data = await locationService.getLocations()
-      setLocations(data)
+      if (mounted) setLocations(data)
     } catch (error) {
-      setError('Failed to load locations. Please try again.')
+      if (mounted) setError('Failed to load locations. Please try again.')
       console.error('Error loading locations:', error)
     } finally {
-      setLoading(false)
+      if (mounted) setLoading(false)
+    }
+  }
+
+  const loadRoutes = async (mounted = true) => {
+    try {
+      const data = await locationService.getAllRoutes()
+      if (mounted) setRoutes(data)
+    } catch (error) {
+      console.error('Error loading routes:', error)
     }
   }
 
@@ -117,32 +154,79 @@ export default function Map() {
     setShowStartPicker(true)
   }
 
+  const buildRoutePath = (startCoords: [number, number], endCoords: [number, number], route?: Route) => {
+    if (!route?.waypoints?.length) return [startCoords, endCoords]
+
+    const waypoints = route.waypoints
+      .map(routePointToLatLng)
+      .filter((point): point is [number, number] => Boolean(point))
+
+    return [startCoords, ...waypoints, endCoords]
+  }
+
+  const pathDistance = (path: [number, number][]) => {
+    return path.reduce((total, point, index) => {
+      if (index === 0) return total
+      return total + L.latLng(path[index - 1]).distanceTo(L.latLng(point))
+    }, 0)
+  }
+
+  const findBestRoute = (startId: string, destinationId: string) => {
+    return routes
+      .filter((route) => route.start_location === startId && route.end_location === destinationId)
+      .sort((a, b) => a.distance_km - b.distance_km)[0]
+  }
+
+  const showRoute = (startCoords: [number, number], endCoords: [number, number], route?: Route) => {
+    const path = buildRoutePath(startCoords, endCoords, route)
+    const distance = route?.distance_km ? route.distance_km * 1000 : pathDistance(path)
+
+    setNavigationPath(path)
+    setNavMetrics({
+      distance: Math.round(distance),
+      time: route?.estimated_time_minutes || calculateTravelTime(distance)
+    })
+    setIsNavigating(true)
+  }
+
   const finalizeNavigation = (start: Location) => {
     if (!pendingDestination) return
     
     const startCoords: [number, number] = [Number(start.latitude), Number(start.longitude)]
     const endCoords: [number, number] = [Number(pendingDestination.latitude), Number(pendingDestination.longitude)]
-    
-    // Calculate shortest distance (Great Circle/Straight Line)
-    const startLatLng = L.latLng(startCoords)
-    const endLatLng = L.latLng(endCoords)
-    const distance = startLatLng.distanceTo(endLatLng) // in meters
+    const route = findBestRoute(start.id, pendingDestination.id)
 
-    setNavigationPath([startCoords, endCoords])
-    setNavMetrics({
-      distance: Math.round(distance),
-      time: calculateTravelTime(distance)
-    })
-
-    setIsNavigating(true)
+    showRoute(startCoords, endCoords, route)
     setShowStartPicker(false)
     setPendingDestination(null)
+  }
+
+  const finalizeNavigationFromCurrentLocation = () => {
+    if (!pendingDestination) return
+
+    if (!navigator.geolocation) {
+      setError('Current location is not available in this browser. Choose a starting point instead.')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const startCoords: [number, number] = [position.coords.latitude, position.coords.longitude]
+        const endCoords: [number, number] = [Number(pendingDestination.latitude), Number(pendingDestination.longitude)]
+        showRoute(startCoords, endCoords)
+        setShowStartPicker(false)
+        setPendingDestination(null)
+      },
+      () => setError('Unable to use current location. Choose a starting point instead.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
   }
 
 
   const clearNavigation = () => {
     setNavigationPath(null)
     setIsNavigating(false)
+    setNavMetrics(null)
   }
 
   const filteredLocations = useMemo(() => {
@@ -170,21 +254,18 @@ export default function Map() {
       status: selectedLocation?.status || 'active'
     }
 
-    if (selectedLocation?.id) {
-      await locationService.updateLocation(selectedLocation.id, payload)
-      await locationService.updateLocation(selectedLocation.id, payload).catch(err => {
-        setError('Failed to update location: ' + (err.response?.data?.detail || err.message)); throw err;
-      })
-    } else {
-      await locationService.createLocation(payload)
-      await locationService.createLocation(payload).catch(err => {
-        setError('Failed to create location: ' + (err.response?.data?.detail || err.message)); throw err;
-      })
+    try {
+      if (selectedLocation?.id) {
+        await locationService.updateLocation(selectedLocation.id, payload)
+      } else {
+        await locationService.createLocation(payload)
+      }
+      setError(null)
+      resetEditor()
+      await loadLocations()
+    } catch (err: any) {
+      setError(`Failed to ${selectedLocation?.id ? 'update' : 'create'} location: ${err.response?.data?.detail || err.message}`)
     }
-
-    setError(null); // Clear error on success
-    resetEditor()
-    await loadLocations()
   }
 
   const renderMarkers = useCallback((typeFilter?: string) => {
@@ -215,6 +296,30 @@ export default function Map() {
       </Marker>
     ))
   }, [locations, filteredLocations])
+
+  const renderRoutes = useCallback(() => {
+    return routes.map((route) => {
+      const start = locations.find((location) => location.id === route.start_location)
+      const end = locations.find((location) => location.id === route.end_location)
+      if (!start || !end) return null
+
+      const positions = buildRoutePath(
+        [Number(start.latitude), Number(start.longitude)],
+        [Number(end.latitude), Number(end.longitude)],
+        route
+      )
+
+      return (
+        <Polyline
+          key={route.id}
+          positions={positions}
+          color="#1357b8"
+          weight={3}
+          opacity={0.65}
+        />
+      )
+    })
+  }, [routes, locations])
 
   return (
     <div className="page map-page">
@@ -249,25 +354,28 @@ export default function Map() {
                 <LayersControl.Overlay checked name="All Locations">
                   <LayerGroup>{renderMarkers()}</LayerGroup>
                 </LayersControl.Overlay>
+
+                <LayersControl.Overlay checked name="Navigation Routes">
+                  <LayerGroup>{renderRoutes()}</LayerGroup>
+                </LayersControl.Overlay>
                 
-                <LayersControl.Overlay name="Dining & Serving Points">
+                <LayersControl.Overlay name="Serving Points">
                   <LayerGroup>{renderMarkers('dining')}</LayerGroup>
                 </LayersControl.Overlay>
 
-                <LayersControl.Overlay name="Hostels & Housing">
-                  <LayerGroup>{renderMarkers('hostel')}</LayerGroup>
+                <LayersControl.Overlay name="Accommodations">
                   <LayerGroup>{renderMarkers('accommodation')}</LayerGroup>
                 </LayersControl.Overlay>
 
-                <LayersControl.Overlay name="Parishes">
-                  <LayerGroup>{renderMarkers('parish')}</LayerGroup>
+                <LayersControl.Overlay name="Parking Spots">
+                  <LayerGroup>{renderMarkers('parking')}</LayerGroup>
                 </LayersControl.Overlay>
 
-                <LayersControl.Overlay name="Health & Security">
+                <LayersControl.Overlay name="Medical Facilities">
                   <LayerGroup>{renderMarkers('healthcare')}</LayerGroup>
                 </LayersControl.Overlay>
 
-                <LayersControl.Overlay name="Offices & Admin">
+                <LayersControl.Overlay name="Offices">
                   <LayerGroup>{renderMarkers('office')}</LayerGroup>
                 </LayersControl.Overlay>
               </LayersControl>
@@ -283,7 +391,7 @@ export default function Map() {
               
               {isNavigating && navigationPath && (
                 <>
-                  <Polyline positions={navigationPath} color="blue" weight={5} dashArray="10, 10" />
+                  <Polyline positions={navigationPath} color="#d92d20" weight={6} opacity={0.92} />
                   <NavigationBounder points={navigationPath} />
                 </>
               )}
@@ -347,12 +455,12 @@ export default function Map() {
             <select value={form.location_type} onChange={(event) => updateField('location_type', event.target.value)}>
               <option value="auditorium">Auditorium</option>
               <option value="accommodation">Accommodation</option>
-              <option value="parish">Parish</option>
               <option value="healthcare">Healthcare</option>
               <option value="dining">Dining</option>
               <option value="parking">Parking</option>
               <option value="shuttle_stop">Shuttle stop</option>
-              <option value="hostel">Hostel</option>
+              <option value="restroom">Restroom</option>
+              <option value="emergency">Emergency service</option>
               <option value="office">Office</option>
               <option value="retail">Business</option>
               <option value="other">Other</option>
@@ -399,6 +507,14 @@ export default function Map() {
             <div className="navigation-modal" style={{ background: 'white', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
               <h3>Route to {pendingDestination?.name}</h3>
               <p>Where are you starting from?</p>
+              <button
+                className="primary-action"
+                type="button"
+                onClick={finalizeNavigationFromCurrentLocation}
+                style={{ width: '100%', marginTop: '10px' }}
+              >
+                Use current location
+              </button>
               <div className="start-selection-list" style={{ maxHeight: '300px', overflowY: 'auto', margin: '15px 0' }}>
                 {locations.filter(l => l.id !== pendingDestination?.id).map(l => (
                   <button 

@@ -25,7 +25,7 @@ export default function App() {
           <LiveDataBar />
           <main className={isAuthenticated ? 'main-content' : 'main-content main-content--flush'}>
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Home />} />
               <Route path="/map" element={isAuthenticated ? <Map /> : <Navigate to="/" />} />
               <Route path="/events" element={<Events />} />
               <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" />} />

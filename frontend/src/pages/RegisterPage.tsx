@@ -5,6 +5,8 @@ import { useNavigate, Link } from 'react-router-dom'
 export default function RegisterPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -21,7 +23,7 @@ export default function RegisterPage() {
     }
     setLoading(true)
     try {
-      await register(username, email, password)
+      await register(username, email, password, firstName, lastName)
       navigate('/dashboard') // Redirect to dashboard on successful registration
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.')
@@ -36,6 +38,26 @@ export default function RegisterPage() {
         <h2>Register for RedeemGuide</h2>
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <p className="error-message">{error}</p>}
+          <label>
+            First name:
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </label>
+          <label>
+            Last name:
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </label>
           <label>
             Username:
             <input

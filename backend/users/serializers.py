@@ -13,10 +13,13 @@ class CustomUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'is_verified', 'is_active',
+            'user_type', 'is_staff', 'is_superuser', 'is_verified', 'is_active',
             'created_at', 'updated_at', 'password'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'is_active']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'is_staff', 'is_superuser',
+            'is_verified', 'is_active'
+        ]
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)
@@ -125,10 +128,13 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'is_verified', 'is_active',
+            'user_type', 'is_staff', 'is_superuser', 'is_verified', 'is_active',
             'created_at', 'updated_at', 'password'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'is_active',]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'is_staff', 'is_superuser',
+            'is_verified', 'is_active',
+        ]
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)
@@ -154,6 +160,9 @@ class AuthResponseSerializer(serializers.Serializer):
     email = serializers.CharField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
+    user_type = serializers.CharField()
+    is_staff = serializers.BooleanField()
+    is_superuser = serializers.BooleanField()
     
     def get_id(self, obj):
         return str(obj.id)

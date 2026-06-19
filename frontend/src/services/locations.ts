@@ -45,12 +45,13 @@ export interface Route {
   estimated_time_minutes: number
   difficulty_level: string
   wheelchair_accessible: boolean
+  waypoints?: Array<[number, number] | { latitude: number; longitude: number } | { lat: number; lng: number }>
 }
 
 class LocationService {
   async getLocations(filters?: any): Promise<Location[]> {
-    const response = await apiClient.get<{ results: Location[] }>('/locations/', { params: filters })
-    return response.data.results
+    const response = await apiClient.get<Location[] | { results: Location[] }>('/locations/', { params: filters })
+    return Array.isArray(response.data) ? response.data : response.data.results
   }
 
   async getLocation(id: string): Promise<Location> {
@@ -97,13 +98,18 @@ class LocationService {
   }
 
   async getRoutes(startLocationId: string, endLocationId: string): Promise<Route[]> {
-    const response = await apiClient.get<{ results: Route[] }>('/routes/', {
+    const response = await apiClient.get<Route[] | { results: Route[] }>('/routes/', {
       params: {
         start_location: startLocationId,
         end_location: endLocationId
       }
     })
-    return response.data.results
+    return Array.isArray(response.data) ? response.data : response.data.results
+  }
+
+  async getAllRoutes(): Promise<Route[]> {
+    const response = await apiClient.get<Route[] | { results: Route[] }>('/routes/')
+    return Array.isArray(response.data) ? response.data : response.data.results
   }
 
   async getNearbyLocations(latitude: number, longitude: number, radiusKm: number = 1): Promise<Location[]> {

@@ -28,9 +28,9 @@ class NavigationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Navigation
         fields = [
-            'id', 'user', 'user_name', 'route', 'start_location', 'end_location',
+            'id', 'user', 'user_name', 'route', 'start_location', 'destination',
             'status', 'current_latitude', 'current_longitude', 'started_at',
-            'estimated_arrival', 'completed_at', 'feedback_rating', 'feedback_comment',
-            'checkpoints', 'created_at', 'updated_at'
+            'estimated_arrival_time', 'completed_at', 'duration_minutes',
+            'feedback_rating', 'feedback_comment', 'checkpoints'
         ]
-        read_only_fields = ['id', 'started_at', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'started_at']

@@ -33,13 +33,13 @@ export default function AuthPanel() {
 
     if (mode === 'login') {
       await login(form.username, form.password)
-      navigate('/map')
+      navigate('/dashboard')
       return
     }
 
     await register(form.username, form.email, form.password, form.firstName, form.lastName)
     await login(form.username, form.password)
-    navigate('/map')
+    navigate('/dashboard')
   }
 
   return (
@@ -93,7 +93,7 @@ export default function AuthPanel() {
             onSuccess={async (credentialResponse) => {
               if (credentialResponse.credential) {
                 await loginWithGoogle(credentialResponse.credential)
-                navigate('/map')
+                navigate('/dashboard')
               }
             }}
             onError={() => console.error('Google login failed')}
