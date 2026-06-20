@@ -47,6 +47,8 @@ services:
       - media_volume:/app/media
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
       - DEBUG=False
       - DATABASE_ENGINE=django.db.backends.postgresql
@@ -71,6 +73,8 @@ services:
     command: celery -A redeemguide_api worker -l info
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env
     environment:
       - DEBUG=False
       - DATABASE_ENGINE=django.db.backends.postgresql
@@ -94,6 +98,8 @@ services:
     command: celery -A redeemguide_api beat -l info
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env
     environment:
       - DEBUG=False
       - DATABASE_ENGINE=django.db.backends.postgresql

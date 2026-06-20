@@ -12,27 +12,32 @@ import { useAuthStore } from './store/authStore'
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const checkAuth = useAuthStore((state) => state.checkAuth)
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
 
-  return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'not-configured'}>
-      <Router>
-        <div className="app">
-          {isAuthenticated && <Navigation />}
-          <LiveDataBar />
-          <main className={isAuthenticated ? 'main-content' : 'main-content main-content--flush'}>
-            <Routes>
-              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Home />} />
-              <Route path="/map" element={isAuthenticated ? <Map /> : <Navigate to="/" />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" />} />
-            </Routes>
-          </main>
-        </div>
-      </Router>
-    </GoogleOAuthProvider>
+  const app = (
+    <Router>
+      <div className="app">
+        {isAuthenticated && <Navigation />}
+        <LiveDataBar />
+        <main className={isAuthenticated ? 'main-content' : 'main-content main-content--flush'}>
+          <Routes>
+            <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Home />} />
+            <Route path="/map" element={isAuthenticated ? <Map /> : <Navigate to="/" />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   )
+
+  if (!googleClientId) {
+    return app
+  }
+
+  return <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
 }

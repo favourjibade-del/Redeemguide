@@ -96,7 +96,6 @@ class GoogleAuthView(APIView):
             user = User.objects.get(email=email)
             created = False
         except User.DoesNotExist:
-            # Create new user
             user = User.objects.create_user(
                 username=username,
                 email=email,
@@ -124,11 +123,6 @@ class GoogleAuthView(APIView):
             
             if changed:
                 user.save()
-
-        # Ensure password is unusable for OAuth users
-        if user.has_usable_password():
-            user.set_unusable_password()
-            user.save()
 
         return Response(token_response_for_user(user))
 

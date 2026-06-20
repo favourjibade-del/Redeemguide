@@ -41,9 +41,7 @@ db.sqlite3-journal
 *.pot
 
 # Environment variables
-.env
-.env.local
-.env.*.local
+# This project intentionally allows checked-in .env files for local setup.
 
 # IDE
 .vscode/
@@ -62,8 +60,6 @@ db.sqlite3-journal
 frontend/node_modules/
 frontend/npm-debug.log
 frontend/dist/
-frontend/.env.local
-frontend/.env.*.local
 frontend/build/
 
 # OS

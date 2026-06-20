@@ -8,6 +8,10 @@ CustomUser = get_user_model()
 class CustomUserSerializer(serializers.ModelSerializer):
     """Serializer for CustomUser model"""
     password = serializers.CharField(write_only=True, required=False)
+    user_type = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
     
     class Meta:
         model = CustomUser
@@ -36,6 +40,18 @@ class CustomUserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
             instance.save()
         return instance
+
+    def get_user_type(self, obj):
+        return getattr(obj, 'user_type', 'user')
+
+    def get_is_verified(self, obj):
+        return getattr(obj, 'is_verified', obj.is_active)
+
+    def get_created_at(self, obj):
+        return obj.date_joined
+
+    def get_updated_at(self, obj):
+        return getattr(obj, 'updated_at', obj.date_joined)
 
 
 class SignupSerializer(serializers.ModelSerializer):
@@ -122,7 +138,10 @@ class UserActivitySerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     """Extended user serializer with preferences"""
     password = serializers.CharField(write_only=True, required=False)
-    
+    user_type = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
     
     class Meta:
         model = CustomUser
@@ -152,6 +171,18 @@ class UserDetailSerializer(serializers.ModelSerializer):
             instance.save()
         return instance
 
+    def get_user_type(self, obj):
+        return getattr(obj, 'user_type', 'user')
+
+    def get_is_verified(self, obj):
+        return getattr(obj, 'is_verified', obj.is_active)
+
+    def get_created_at(self, obj):
+        return obj.date_joined
+
+    def get_updated_at(self, obj):
+        return getattr(obj, 'updated_at', obj.date_joined)
+
 
 class AuthResponseSerializer(serializers.Serializer):
     """Minimal serializer for auth responses"""
@@ -160,9 +191,12 @@ class AuthResponseSerializer(serializers.Serializer):
     email = serializers.CharField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
-    user_type = serializers.CharField()
+    user_type = serializers.SerializerMethodField()
     is_staff = serializers.BooleanField()
     is_superuser = serializers.BooleanField()
     
     def get_id(self, obj):
         return str(obj.id)
+
+    def get_user_type(self, obj):
+        return getattr(obj, 'user_type', 'user')

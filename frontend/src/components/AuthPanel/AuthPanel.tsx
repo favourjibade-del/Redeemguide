@@ -21,6 +21,7 @@ export default function AuthPanel() {
     firstName: '',
     lastName: ''
   })
+  const [googleError, setGoogleError] = useState<string | null>(null)
   const googleConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 
   const updateField = (field: keyof typeof form, value: string) => {
@@ -30,6 +31,7 @@ export default function AuthPanel() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     clearError()
+    setGoogleError(null)
 
     if (mode === 'login') {
       await login(form.username, form.password)
@@ -54,6 +56,7 @@ export default function AuthPanel() {
       </div>
 
       {error && <p className="error">{error}</p>}
+      {googleError && <p className="error">{googleError}</p>}
 
       <form className="auth-form" onSubmit={handleSubmit}>
         {mode === 'register' && (
@@ -91,12 +94,22 @@ export default function AuthPanel() {
         {googleConfigured ? (
           <GoogleLogin
             onSuccess={async (credentialResponse) => {
-              if (credentialResponse.credential) {
+              clearError()
+              setGoogleError(null)
+
+              try {
+                if (!credentialResponse.credential) {
+                  setGoogleError('Google did not return a sign-in credential.')
+                  return
+                }
+
                 await loginWithGoogle(credentialResponse.credential)
                 navigate('/dashboard')
+              } catch (err: any) {
+                setGoogleError(err.response?.data?.detail || 'Google login failed')
               }
             }}
-            onError={() => console.error('Google login failed')}
+            onError={() => setGoogleError('Google login was cancelled or failed.')}
           />
         ) : (
           <button className="secondary-action" type="button" disabled>
