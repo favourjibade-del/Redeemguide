@@ -1,6 +1,11 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const API_BASE_URL = rawApiBaseUrl
+  ? rawApiBaseUrl.replace(/\/+$/, '').startsWith('http')
+    ? rawApiBaseUrl.replace(/\/+$/, '')
+    : `https://${rawApiBaseUrl.replace(/\/+$/, '')}`
+  : 'http://localhost:8000'
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1'
 
 class APIClient {
