@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useNavigate, Link } from 'react-router-dom'
+import Logo from '../components/Brand/Logo'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -27,7 +28,7 @@ export default function LoginPage() {
   return (
     <div className="page auth-page">
       <div className="auth-container">
-        <h2>Login to RedeemGuide</h2>
+        <h2>Login to <Logo inline /></h2>
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <p className="error-message">{error}</p>}
           <label>

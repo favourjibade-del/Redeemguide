@@ -9,6 +9,20 @@
   --muted-text: #667085;
   --border-color: #d7dee8;
   --shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+  --camp-background: url('../assets/Redemption_Camp.jpg');
+}
+
+:root[data-theme='dark'] {
+  --primary-color: #62a3ff;
+  --secondary-color: #3dd68c;
+  --danger-color: #ff6b61;
+  --warning-color: #f7b955;
+  --background-color: #111827;
+  --surface-color: #1f2937;
+  --text-color: #f8fafc;
+  --muted-text: #b6c2d1;
+  --border-color: #374151;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
 }
 
 * {
@@ -23,7 +37,12 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--background-color);
+  background:
+    linear-gradient(rgba(246, 247, 249, 0.72), rgba(246, 247, 249, 0.72)),
+    var(--camp-background);
+  background-attachment: fixed;
+  background-position: center;
+  background-size: cover;
   color: var(--text-color);
 }
 
@@ -36,6 +55,22 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: relative;
+}
+
+.app--authenticated {
+  background:
+    linear-gradient(rgba(246, 247, 249, 0.86), rgba(246, 247, 249, 0.86)),
+    var(--camp-background);
+  background-attachment: fixed;
+  background-position: center;
+  background-size: cover;
+}
+
+:root[data-theme='dark'] .app--authenticated {
+  background:
+    linear-gradient(rgba(17, 24, 39, 0.88), rgba(17, 24, 39, 0.88)),
+    var(--camp-background);
 }
 
 .main-content {
@@ -64,7 +99,7 @@ button {
 
 /* Navigation Styles */
 .navigation {
-  background-color: white;
+  background-color: var(--surface-color);
   box-shadow: var(--shadow);
   position: sticky;
   top: 0;
@@ -84,8 +119,37 @@ button {
 .nav-logo a {
   font-size: 1.5rem;
   font-weight: bold;
-  color: var(--primary-color);
   text-decoration: none;
+}
+
+.brand-logo {
+  color: var(--text-color);
+  display: inline;
+  font-weight: inherit;
+  letter-spacing: 0;
+}
+
+.brand-inline {
+  white-space: nowrap;
+}
+
+.brand-R,
+.brand-G,
+.brand-e2 {
+  color: #1357b8;
+}
+
+.brand-u {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.35);
+}
+
+.brand-i {
+  color: #d92d20;
+}
+
+.brand-d {
+  color: #16865a;
 }
 
 .nav-menu {
@@ -131,6 +195,16 @@ button {
 
 .logout-btn:hover {
   background-color: #990000;
+}
+
+.theme-toggle {
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-color);
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0.4rem 0.8rem;
 }
 
 /* Page Styles */
@@ -188,8 +262,8 @@ button {
 .splash-hero {
   align-items: center;
   background:
-    linear-gradient(rgba(15, 23, 42, 0.58), rgba(15, 23, 42, 0.58)),
-    url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=80');
+    linear-gradient(rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.42)),
+    var(--camp-background);
   background-position: center;
   background-size: cover;
   color: white;
@@ -357,6 +431,11 @@ button {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.location-editor label {
+  color: var(--text-color);
+  text-shadow: none;
+}
+
 .auth-form input,
 .location-editor input,
 .location-editor select,
@@ -394,7 +473,7 @@ button {
 }
 
 .secondary-action {
-  background: #eef2f7;
+  background: var(--background-color);
   color: var(--text-color);
 }
 
@@ -662,6 +741,13 @@ button {
   color: var(--muted-text);
 }
 
+.map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .map-container {
   display: grid;
   gap: 1rem;
@@ -696,7 +782,7 @@ button {
 }
 
 .location-item {
-  background: white;
+  background: var(--surface-color);
   border: 0;
   border-bottom: 1px solid var(--border-color);
   display: grid;
@@ -707,7 +793,7 @@ button {
 }
 
 .locations-list {
-  background-color: white;
+  background-color: var(--surface-color);
   border-radius: 8px;
   padding: 1rem;
   box-shadow: var(--shadow);
@@ -739,7 +825,7 @@ button {
 }
 
 .location-details {
-  background-color: white;
+  background-color: var(--surface-color);
   border-radius: 8px;
   padding: 1rem;
   box-shadow: var(--shadow);
@@ -760,7 +846,8 @@ button {
 .filter-buttons button {
   padding: 0.5rem 1rem;
   border: 1px solid var(--border-color);
-  background-color: white;
+  background-color: var(--surface-color);
+  color: var(--text-color);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
@@ -780,7 +867,7 @@ button {
 }
 
 .event-card {
-  background-color: white;
+  background-color: var(--surface-color);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -928,7 +1015,7 @@ button {
 
 .dashboard-header {
   align-items: center;
-  background-color: white;
+  background-color: var(--surface-color);
   display: flex;
   gap: 1rem;
   justify-content: space-between;
@@ -949,7 +1036,7 @@ button {
 }
 
 .dashboard-section {
-  background-color: white;
+  background-color: var(--surface-color);
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: var(--shadow);
@@ -1191,4 +1278,26 @@ button {
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
+}
+
+.location-card,
+.start-selection-list button {
+  color: var(--text-color);
+}
+
+.navigation-modal,
+.nav-overlay {
+  background: var(--surface-color) !important;
+  color: var(--text-color);
+}
+
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select,
+:root[data-theme='dark'] textarea {
+  background: #111827;
+  color: var(--text-color);
+}
+
+:root[data-theme='dark'] .leaflet-container {
+  background: #111827;
 }

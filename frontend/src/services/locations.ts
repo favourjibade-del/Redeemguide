@@ -5,6 +5,8 @@ export interface Location {
   name: string
   description: string
   location_type: string
+  category?: string | null
+  category_name?: string
   latitude: number
   longitude: number
   address: string
@@ -48,6 +50,11 @@ export interface Route {
   waypoints?: Array<[number, number] | { latitude: number; longitude: number } | { lat: number; lng: number }>
 }
 
+export type RoutePayload = Omit<Route, 'id'> & {
+  description?: string
+  is_accessible?: boolean
+}
+
 class LocationService {
   async getLocations(filters?: any): Promise<Location[]> {
     const response = await apiClient.get<Location[] | { results: Location[] }>('/locations/', { params: filters })
@@ -78,8 +85,8 @@ class LocationService {
   }
 
   async getCategories(): Promise<LocationCategory[]> {
-    const response = await apiClient.get<{ results: LocationCategory[] }>('/location-categories/')
-    return response.data.results
+    const response = await apiClient.get<LocationCategory[] | { results: LocationCategory[] }>('/location-categories/')
+    return Array.isArray(response.data) ? response.data : response.data.results
   }
 
   async getLocationReviews(locationId: string): Promise<LocationReview[]> {
@@ -110,6 +117,11 @@ class LocationService {
   async getAllRoutes(): Promise<Route[]> {
     const response = await apiClient.get<Route[] | { results: Route[] }>('/routes/')
     return Array.isArray(response.data) ? response.data : response.data.results
+  }
+
+  async createRoute(route: RoutePayload): Promise<Route> {
+    const response = await apiClient.post<Route>('/routes/', route)
+    return response.data
   }
 
   async getNearbyLocations(latitude: number, longitude: number, radiusKm: number = 1): Promise<Location[]> {

@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents, LayersControl, LayerGroup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { Location, Route, locationService } from '../services/locations'
+import { Location, LocationCategory, Route, locationService } from '../services/locations'
+import Logo from '../components/Brand/Logo'
 import 'leaflet/dist/leaflet.css'
 
 const defaultCenter: [number, number] = [6.8126, 3.4446]
@@ -39,6 +40,7 @@ const emptyForm = {
   name: '',
   description: '',
   location_type: 'other',
+  category: '',
   address: '',
   contact_phone: '',
   contact_email: '',
@@ -46,7 +48,21 @@ const emptyForm = {
   business_website: ''
 }
 
+const emptyRouteForm = {
+  name: '',
+  start_location: '',
+  end_location: '',
+  route_type: 'pedestrian',
+  difficulty_level: 'easy',
+  wheelchair_accessible: false,
+  description: ''
+}
+
 type RoutePoint = NonNullable<Route['waypoints']>[number]
+type RouteSegment = {
+  route: Route
+  reversed: boolean
+}
 
 const routePointToLatLng = (point: RoutePoint): [number, number] | null => {
   if (Array.isArray(point) && point.length >= 2) return [Number(point[0]), Number(point[1])]
@@ -67,12 +83,16 @@ function NavigationBounder({ points }: { points: [number, number][] }) {
 
 export default function Map() {
   const [locations, setLocations] = useState<Location[]>([])
+  const [categories, setCategories] = useState<LocationCategory[]>([])
   const [routes, setRoutes] = useState<Route[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pickedPosition, setPickedPosition] = useState<[number, number] | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [routeForm, setRouteForm] = useState(emptyRouteForm)
+  const [routeWaypoints, setRouteWaypoints] = useState<[number, number][]>([])
+  const [isRouteBuilderOpen, setIsRouteBuilderOpen] = useState(false)
 
   // Navigation & Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -93,6 +113,7 @@ export default function Map() {
 
     const loadRealtimeData = async () => {
       await loadLocations(mounted)
+      await loadCategories(mounted)
       await loadRoutes(mounted)
     }
 
@@ -130,8 +151,21 @@ export default function Map() {
     }
   }
 
+  const loadCategories = async (mounted = true) => {
+    try {
+      const data = await locationService.getCategories()
+      if (mounted) setCategories(data)
+    } catch (error) {
+      console.error('Error loading categories:', error)
+    }
+  }
+
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const updateRouteField = (field: keyof typeof routeForm, value: string | boolean) => {
+    setRouteForm((current) => ({ ...current, [field]: value }))
   }
 
   const handleEdit = (location: Location) => {
@@ -141,6 +175,7 @@ export default function Map() {
       name: location.name || '',
       description: location.description || '',
       location_type: location.location_type || 'other',
+      category: location.category || '',
       address: location.address || '',
       contact_phone: location.contact_phone || '',
       contact_email: location.contact_email || '',
@@ -154,14 +189,15 @@ export default function Map() {
     setShowStartPicker(true)
   }
 
-  const buildRoutePath = (startCoords: [number, number], endCoords: [number, number], route?: Route) => {
+  const buildRoutePath = (startCoords: [number, number], endCoords: [number, number], route?: Route, reversed = false) => {
     if (!route?.waypoints?.length) return [startCoords, endCoords]
 
     const waypoints = route.waypoints
       .map(routePointToLatLng)
       .filter((point): point is [number, number] => Boolean(point))
+    const orderedWaypoints = reversed ? [...waypoints].reverse() : waypoints
 
-    return [startCoords, ...waypoints, endCoords]
+    return [startCoords, ...orderedWaypoints, endCoords]
   }
 
   const pathDistance = (path: [number, number][]) => {
@@ -171,20 +207,133 @@ export default function Map() {
     }, 0)
   }
 
-  const findBestRoute = (startId: string, destinationId: string) => {
-    return routes
-      .filter((route) => route.start_location === startId && route.end_location === destinationId)
-      .sort((a, b) => a.distance_km - b.distance_km)[0]
+  const findShortestRouteSegments = (startId: string, destinationId: string): RouteSegment[] => {
+    if (startId === destinationId) return []
+
+    const distances = new globalThis.Map<string, number>([[startId, 0]])
+    const previous = new globalThis.Map<string, { from: string; segment: RouteSegment }>()
+    const unvisited = new Set(locations.map((location) => location.id))
+
+    while (unvisited.size) {
+      const current = [...unvisited].sort((a, b) => (distances.get(a) ?? Infinity) - (distances.get(b) ?? Infinity))[0]
+      const currentDistance = distances.get(current) ?? Infinity
+
+      if (!Number.isFinite(currentDistance) || current === destinationId) break
+      unvisited.delete(current)
+
+      routes.forEach((route) => {
+        const neighbors: Array<{ id: string; segment: RouteSegment }> = []
+        if (route.start_location === current) neighbors.push({ id: route.end_location, segment: { route, reversed: false } })
+        if (route.end_location === current) neighbors.push({ id: route.start_location, segment: { route, reversed: true } })
+
+        neighbors.forEach(({ id, segment }) => {
+          if (!unvisited.has(id)) return
+          const nextDistance = currentDistance + route.distance_km
+          if (nextDistance < (distances.get(id) ?? Infinity)) {
+            distances.set(id, nextDistance)
+            previous.set(id, { from: current, segment })
+          }
+        })
+      })
+    }
+
+    if (!previous.has(destinationId)) return []
+
+    const path: RouteSegment[] = []
+    let cursor = destinationId
+    while (cursor !== startId) {
+      const step = previous.get(cursor)
+      if (!step) return []
+      path.unshift(step.segment)
+      cursor = step.from
+    }
+    return path
   }
 
-  const showRoute = (startCoords: [number, number], endCoords: [number, number], route?: Route) => {
-    const path = buildRoutePath(startCoords, endCoords, route)
-    const distance = route?.distance_km ? route.distance_km * 1000 : pathDistance(path)
+  const locationCoords = (locationId: string): [number, number] | null => {
+    const location = locations.find((item) => item.id === locationId)
+    return location ? [Number(location.latitude), Number(location.longitude)] : null
+  }
+
+  const routeBuilderPath = useMemo(() => {
+    const startCoords = routeForm.start_location ? locationCoords(routeForm.start_location) : null
+    const endCoords = routeForm.end_location ? locationCoords(routeForm.end_location) : null
+    return [startCoords, ...routeWaypoints, endCoords].filter((point): point is [number, number] => Boolean(point))
+  }, [routeForm.start_location, routeForm.end_location, routeWaypoints, locations])
+
+  const routeBuilderDistance = useMemo(() => pathDistance(routeBuilderPath), [routeBuilderPath])
+
+  const clearRouteBuilder = () => {
+    setRouteForm(emptyRouteForm)
+    setRouteWaypoints([])
+  }
+
+  const handleRouteSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+
+    if (!routeForm.start_location || !routeForm.end_location || routeForm.start_location === routeForm.end_location) {
+      setError('Choose two different locations before saving a route.')
+      return
+    }
+
+    const start = locations.find((location) => location.id === routeForm.start_location)
+    const end = locations.find((location) => location.id === routeForm.end_location)
+    if (!start || !end) return
+
+    const distanceMeters = routeBuilderDistance || L.latLng(Number(start.latitude), Number(start.longitude)).distanceTo(
+      L.latLng(Number(end.latitude), Number(end.longitude))
+    )
+
+    try {
+      await locationService.createRoute({
+        name: routeForm.name || `${start.name} to ${end.name}`,
+        start_location: routeForm.start_location,
+        end_location: routeForm.end_location,
+        route_type: routeForm.route_type,
+        distance_km: Number((distanceMeters / 1000).toFixed(3)),
+        estimated_time_minutes: calculateTravelTime(distanceMeters),
+        difficulty_level: routeForm.difficulty_level,
+        wheelchair_accessible: routeForm.wheelchair_accessible,
+        waypoints: routeWaypoints,
+        description: routeForm.description,
+        is_accessible: true
+      })
+      setError(null)
+      clearRouteBuilder()
+      await loadRoutes()
+    } catch (err: any) {
+      setError(`Failed to create route: ${err.response?.data?.detail || err.message}`)
+    }
+  }
+
+  const buildNetworkPath = (startCoords: [number, number], endCoords: [number, number], segments: RouteSegment[]) => {
+    if (!segments.length) return [startCoords, endCoords]
+
+    return segments.reduce<[number, number][]>((path, segment, index) => {
+      const segmentStart = segment.reversed ? segment.route.end_location : segment.route.start_location
+      const segmentEnd = segment.reversed ? segment.route.start_location : segment.route.end_location
+      const segmentStartCoords = index === 0 ? startCoords : locationCoords(segmentStart)
+      const segmentEndCoords = index === segments.length - 1 ? endCoords : locationCoords(segmentEnd)
+
+      if (!segmentStartCoords || !segmentEndCoords) return path
+
+      const segmentPath = buildRoutePath(segmentStartCoords, segmentEndCoords, segment.route, segment.reversed)
+      return path.length ? [...path, ...segmentPath.slice(1)] : segmentPath
+    }, [])
+  }
+
+  const showRoute = (startCoords: [number, number], endCoords: [number, number], segments: RouteSegment[] = []) => {
+    const path = buildNetworkPath(startCoords, endCoords, segments)
+    const distance = segments.length
+      ? segments.reduce((total, segment) => total + segment.route.distance_km, 0) * 1000
+      : pathDistance(path)
 
     setNavigationPath(path)
     setNavMetrics({
       distance: Math.round(distance),
-      time: route?.estimated_time_minutes || calculateTravelTime(distance)
+      time: segments.length
+        ? segments.reduce((total, segment) => total + segment.route.estimated_time_minutes, 0)
+        : calculateTravelTime(distance)
     })
     setIsNavigating(true)
   }
@@ -194,9 +343,15 @@ export default function Map() {
     
     const startCoords: [number, number] = [Number(start.latitude), Number(start.longitude)]
     const endCoords: [number, number] = [Number(pendingDestination.latitude), Number(pendingDestination.longitude)]
-    const route = findBestRoute(start.id, pendingDestination.id)
+    const routeSegments = findShortestRouteSegments(start.id, pendingDestination.id)
 
-    showRoute(startCoords, endCoords, route)
+    if (!routeSegments.length) {
+      setError('No saved route connects those locations yet.')
+      return
+    }
+
+    showRoute(startCoords, endCoords, routeSegments)
+    setError(null)
     setShowStartPicker(false)
     setPendingDestination(null)
   }
@@ -213,7 +368,19 @@ export default function Map() {
       (position) => {
         const startCoords: [number, number] = [position.coords.latitude, position.coords.longitude]
         const endCoords: [number, number] = [Number(pendingDestination.latitude), Number(pendingDestination.longitude)]
-        showRoute(startCoords, endCoords)
+        const nearestStart = locations
+          .filter((location) => location.id !== pendingDestination.id)
+          .sort((a, b) => (
+            L.latLng(startCoords).distanceTo(L.latLng(Number(a.latitude), Number(a.longitude))) -
+            L.latLng(startCoords).distanceTo(L.latLng(Number(b.latitude), Number(b.longitude)))
+          ))[0]
+        const routeSegments = nearestStart ? findShortestRouteSegments(nearestStart.id, pendingDestination.id) : []
+        if (!routeSegments.length) {
+          setError('No saved route connects your nearest start point to that destination yet.')
+          return
+        }
+        showRoute(startCoords, endCoords, routeSegments)
+        setError(null)
         setShowStartPicker(false)
         setPendingDestination(null)
       },
@@ -248,6 +415,7 @@ export default function Map() {
 
     const payload = {
       ...form,
+      category: form.category || null,
       latitude: pickedPosition[0],
       longitude: pickedPosition[1],
       current_occupancy: selectedLocation?.current_occupancy || 0,
@@ -268,8 +436,8 @@ export default function Map() {
     }
   }
 
-  const renderMarkers = useCallback((typeFilter?: string) => {
-    const list = typeFilter ? locations.filter(l => l.location_type === typeFilter) : filteredLocations
+  const renderMarkers = useCallback((filter?: (location: Location) => boolean) => {
+    const list = filter ? locations.filter(filter) : filteredLocations
     return list.map((location) => (
       <Marker
         key={location.id}
@@ -325,12 +493,21 @@ export default function Map() {
     <div className="page map-page">
       <div className="map-header">
         <div>
-          <h1>RedeemGuide Map</h1>
+          <h1><Logo inline /> Map</h1>
           <p>Click the map to add a location, or choose a marker to edit details.</p>
         </div>
-        <button className="secondary-action" type="button" onClick={resetEditor}>
-          New location
-        </button>
+        <div className="map-actions">
+          <button className="secondary-action" type="button" onClick={resetEditor}>
+            New location
+          </button>
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={() => setIsRouteBuilderOpen((current) => !current)}
+          >
+            {isRouteBuilderOpen ? 'Close route builder' : 'Route builder'}
+          </button>
+        </div>
       </div>
       {error && <p className="error-message">{error}</p>}
 
@@ -359,35 +536,31 @@ export default function Map() {
                   <LayerGroup>{renderRoutes()}</LayerGroup>
                 </LayersControl.Overlay>
                 
-                <LayersControl.Overlay name="Serving Points">
-                  <LayerGroup>{renderMarkers('dining')}</LayerGroup>
-                </LayersControl.Overlay>
-
-                <LayersControl.Overlay name="Accommodations">
-                  <LayerGroup>{renderMarkers('accommodation')}</LayerGroup>
-                </LayersControl.Overlay>
-
-                <LayersControl.Overlay name="Parking Spots">
-                  <LayerGroup>{renderMarkers('parking')}</LayerGroup>
-                </LayersControl.Overlay>
-
-                <LayersControl.Overlay name="Medical Facilities">
-                  <LayerGroup>{renderMarkers('healthcare')}</LayerGroup>
-                </LayersControl.Overlay>
-
-                <LayersControl.Overlay name="Offices">
-                  <LayerGroup>{renderMarkers('office')}</LayerGroup>
-                </LayersControl.Overlay>
+                {categories.map((category) => (
+                  <LayersControl.Overlay key={category.id} name={category.name}>
+                    <LayerGroup>{renderMarkers((location) => location.category === category.id)}</LayerGroup>
+                  </LayersControl.Overlay>
+                ))}
               </LayersControl>
 
               <MapClickHandler
                 onPick={(position) => {
+                  if (isRouteBuilderOpen) {
+                    setRouteWaypoints((current) => [...current, position])
+                    return
+                  }
                   setPickedPosition(position)
                   setSelectedLocation(null)
                 }}
               />
 
               {pickedPosition && <Marker icon={markerIcon} position={pickedPosition} />}
+              {routeWaypoints.map((point, index) => (
+                <Marker key={`${point[0]}-${point[1]}-${index}`} icon={markerIcon} position={point} />
+              ))}
+              {routeBuilderPath.length > 1 && (
+                <Polyline positions={routeBuilderPath} color="#16865a" weight={5} opacity={0.86} dashArray="8 8" />
+              )}
               
               {isNavigating && navigationPath && (
                 <>
@@ -467,6 +640,15 @@ export default function Map() {
             </select>
           </label>
           <label>
+            Category
+            <select value={form.category} onChange={(event) => updateField('category', event.target.value)}>
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
             Description
             <textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} required />
           </label>
@@ -501,6 +683,94 @@ export default function Map() {
             {selectedLocation ? 'Save changes' : 'Add location'}
           </button>
         </form>
+
+        {isRouteBuilderOpen && (
+          <form className="location-editor route-editor" onSubmit={handleRouteSubmit}>
+            <h2>Create route</h2>
+            <div className="auth-form__row">
+              <label>
+                Start
+                <select
+                  value={routeForm.start_location}
+                  onChange={(event) => updateRouteField('start_location', event.target.value)}
+                  required
+                >
+                  <option value="">Choose start</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Destination
+                <select
+                  value={routeForm.end_location}
+                  onChange={(event) => updateRouteField('end_location', event.target.value)}
+                  required
+                >
+                  <option value="">Choose destination</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label>
+              Route name
+              <input
+                value={routeForm.name}
+                onChange={(event) => updateRouteField('name', event.target.value)}
+                placeholder="Leave blank to use start and destination"
+              />
+            </label>
+            <div className="auth-form__row">
+              <label>
+                Route type
+                <select value={routeForm.route_type} onChange={(event) => updateRouteField('route_type', event.target.value)}>
+                  <option value="pedestrian">Pedestrian</option>
+                  <option value="vehicle">Vehicle</option>
+                  <option value="shuttle">Shuttle</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </label>
+              <label>
+                Difficulty
+                <select value={routeForm.difficulty_level} onChange={(event) => updateRouteField('difficulty_level', event.target.value)}>
+                  <option value="easy">Easy</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="difficult">Difficult</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Description
+              <textarea value={routeForm.description} onChange={(event) => updateRouteField('description', event.target.value)} />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={routeForm.wheelchair_accessible}
+                onChange={(event) => updateRouteField('wheelchair_accessible', event.target.checked)}
+              />
+              Wheelchair accessible
+            </label>
+            <p className="editor-coordinates">
+              Click the map while route builder is open to add waypoints. {routeWaypoints.length} waypoint{routeWaypoints.length === 1 ? '' : 's'} selected.
+              {routeBuilderPath.length > 1 && ` Distance: ${(routeBuilderDistance / 1000).toFixed(2)} km.`}
+            </p>
+            <div className="editor-actions">
+              <button className="primary-action" type="submit">
+                Save route
+              </button>
+              <button className="secondary-action" type="button" onClick={() => setRouteWaypoints((current) => current.slice(0, -1))} disabled={!routeWaypoints.length}>
+                Undo waypoint
+              </button>
+              <button className="secondary-action" type="button" onClick={clearRouteBuilder}>
+                Clear
+              </button>
+            </div>
+          </form>
+        )}
 
         {showStartPicker && (
           <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

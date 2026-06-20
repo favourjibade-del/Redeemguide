@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useNavigate, Link } from 'react-router-dom'
+import Logo from '../components/Brand/Logo'
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('')
@@ -35,7 +36,7 @@ export default function RegisterPage() {
   return (
     <div className="page auth-page">
       <div className="auth-container">
-        <h2>Register for RedeemGuide</h2>
+        <h2>Register for <Logo inline /></h2>
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <p className="error-message">{error}</p>}
           <label>

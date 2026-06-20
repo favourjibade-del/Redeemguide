@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import AuthPanel from '../components/AuthPanel/AuthPanel'
 import { apiClient } from '../services/api'
+import Logo from '../components/Brand/Logo'
 
 interface Event {
   id: string
@@ -53,7 +54,7 @@ export default function Home() {
           </div>
           <div className="splash-copy">
             <p className="splash-kicker">Redemption City live guide</p>
-            <h1>RedeemGuide</h1>
+            <h1><Logo /></h1>
             <p>
               Find events, live streams, services, businesses, and helpful places around camp from one editable map.
             </p>

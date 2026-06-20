@@ -20,7 +20,7 @@ export default function App() {
 
   const app = (
     <Router>
-      <div className="app">
+      <div className={isAuthenticated ? 'app app--authenticated' : 'app app--guest'}>
         {isAuthenticated && <Navigation />}
         <LiveDataBar />
         <main className={isAuthenticated ? 'main-content' : 'main-content main-content--flush'}>
