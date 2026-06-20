@@ -190,8 +190,20 @@ REST_FRAMEWORK = {
 # CORS Settings
 # ===============================
 
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:5173,http://localhost:4173', cast=Csv())
+CORS_ALLOWED_ORIGINS = [
+    "https://redeemguide.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:4173",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "x-csrftoken",
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 # ===============================
