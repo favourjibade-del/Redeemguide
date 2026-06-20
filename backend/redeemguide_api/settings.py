@@ -19,6 +19,11 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-h7@=!x#5kp9$q@z8vw&*j
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:5173,http://localhost:4173",
+    cast=Csv(),
+)
 # HTTPS and Security
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -55,6 +60,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -84,29 +90,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'redeemguide_api.wsgi.application'
 
 
-# Database Configuration
-if config('DATABASE_URL', default=None):
+DATABASE_URL = config("DATABASE_URL", default="")
+
+if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.config()
+        "default": dj_database_url.parse(DATABASE_URL)
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': config('DATABASE_ENGINE', default='django.db.backends.postgresql'),
-            'NAME': config('DATABASE_NAME', default='redeemguide'),
-            'USER': config('DATABASE_USER', default='postgres'),
-            'PASSWORD': config('DATABASE_PASSWORD', default=''),
-            'HOST': config('DATABASE_HOST', default='localhost'),
-            'PORT': config('DATABASE_PORT', default='5432'),
-        }
-    }
-
-# Fallback to SQLite for development
-if not config('DATABASE_NAME', default=None):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DATABASE_NAME"),
+            "USER": config("DATABASE_USER"),
+            "PASSWORD": config("DATABASE_PASSWORD"),
+            "HOST": config("DATABASE_HOST"),
+            "PORT": config("DATABASE_PORT"),
         }
     }
 
@@ -145,6 +143,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media files
 MEDIA_URL = '/media/'
