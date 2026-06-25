@@ -18,19 +18,24 @@ class EventAttendeeSerializer(serializers.ModelSerializer):
 class EventSerializer(serializers.ModelSerializer):
     attendees = EventAttendeeSerializer(many=True, read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Event
         fields = [
             'id', 'name', 'description', 'event_type', 'status',
-            'location', 'location_name', 'created_by', 'created_by_name',
+            'location', 'manual_location', 'location_name', 'created_by', 'created_by_name',
             'start_time', 'end_time', 'expected_attendance', 'current_attendees',
             'speaker_names', 'image', 'banner', 'agenda', 'tags',
             'registration_url', 'is_free', 'ticket_price', 'max_capacity',
             'requires_registration', 'attendees', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_location_name(self, obj):
+        if obj.location:
+            return obj.location.name
+        return obj.manual_location
 
 
 class EventDetailSerializer(EventSerializer):
