@@ -6,7 +6,8 @@ export interface Event {
   description: string
   event_type: string
   status: string
-  location: string
+  location: string | null
+  manual_location?: string
   location_name?: string
   start_time: string
   end_time: string

@@ -64,6 +64,12 @@ type RouteSegment = {
   reversed: boolean
 }
 
+const getLocationCategoryId = (location: Location) => {
+  if (!location.category) return ''
+  if (typeof location.category === 'string') return location.category
+  return String((location.category as { id?: string }).id || '')
+}
+
 const routePointToLatLng = (point: RoutePoint): [number, number] | null => {
   if (Array.isArray(point) && point.length >= 2) return [Number(point[0]), Number(point[1])]
   if (!point || typeof point !== 'object') return null
@@ -400,6 +406,13 @@ export default function Map() {
     return locations.filter(loc => loc.name.toLowerCase().includes(searchQuery.toLowerCase()))
   }, [locations, searchQuery])
 
+  const categoryLayerCounts = useMemo(() => {
+    return categories.reduce<Record<string, number>>((counts, category) => {
+      counts[category.id] = locations.filter((location) => getLocationCategoryId(location) === category.id).length
+      return counts
+    }, {})
+  }, [categories, locations])
+
   const resetEditor = () => {
     setSelectedLocation(null)
     setPickedPosition(null)
@@ -448,7 +461,7 @@ export default function Map() {
           <div className="map-popup">
             <strong>{location.name}</strong>
             <br />
-            <span className="type-tag">{location.location_type}</span>
+            <span className="type-tag">{location.category_name || location.location_type}</span>
             <br />
             <button 
               className="nav-btn-link"
@@ -537,10 +550,14 @@ export default function Map() {
                 </LayersControl.Overlay>
                 
                 {categories.map((category) => (
-                  <LayersControl.Overlay key={category.id} name={category.name}>
-                    <LayerGroup>{renderMarkers((location) => location.category === category.id)}</LayerGroup>
+                  <LayersControl.Overlay key={category.id} name={`${category.name} (${categoryLayerCounts[category.id] || 0})`}>
+                    <LayerGroup>{renderMarkers((location) => getLocationCategoryId(location) === category.id)}</LayerGroup>
                   </LayersControl.Overlay>
                 ))}
+
+                <LayersControl.Overlay name="Uncategorized">
+                  <LayerGroup>{renderMarkers((location) => !getLocationCategoryId(location))}</LayerGroup>
+                </LayersControl.Overlay>
               </LayersControl>
 
               <MapClickHandler
@@ -647,6 +664,9 @@ export default function Map() {
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
+            <span className="field-hint">
+              This category controls which map layer the location appears under.
+            </span>
           </label>
           <label>
             Description

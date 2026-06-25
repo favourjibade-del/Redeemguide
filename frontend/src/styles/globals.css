@@ -592,6 +592,13 @@ button {
   position: relative;
 }
 
+.event-card img {
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
 .event-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.15);
@@ -642,6 +649,49 @@ button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.home-event-tabs,
+.location-mode-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background: #eef2f7;
+  border-radius: 8px;
+}
+
+.home-event-tabs button,
+.location-mode-toggle button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted-text);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+}
+
+.home-event-tabs button.active,
+.location-mode-toggle button.active {
+  background: var(--surface-color);
+  color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.feature-event-card {
+  min-height: 100%;
+}
+
+.live-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.live-event-actions a {
+  text-decoration: none;
 }
 
 .loading,
@@ -967,6 +1017,12 @@ button {
 .event-editor textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+.field-hint {
+  color: var(--muted-text);
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .editor-grid {

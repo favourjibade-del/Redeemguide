@@ -10,7 +10,9 @@ interface Event {
   description: string
   start_time: string
   end_time: string
-  location: { id: string; name: string } | string
+  location: { id: string; name: string } | string | null
+  manual_location?: string
+  location_name?: string
   status: string
   event_type: string
 }
@@ -18,6 +20,7 @@ interface Event {
 export default function Home() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [events, setEvents] = useState<Event[]>([])
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'live'>('upcoming')
   const [loading, setLoading] = useState(!isAuthenticated)
 
   useEffect(() => {
@@ -40,7 +43,6 @@ export default function Home() {
     }
   }
 
-  // Unauthenticated splash screen with auth panel
   if (!isAuthenticated) {
     return (
       <div className="page splash-page">
@@ -65,7 +67,6 @@ export default function Home() {
     )
   }
 
-  // Authenticated home page with live events and details
   return (
     <div className="page home-page">
       <div className="home-hero">
@@ -87,36 +88,84 @@ export default function Home() {
 
       <section className="live-events-section">
         <div className="section-header">
-          <h2>Live Events</h2>
-          <p>Now happening at Redemption City</p>
+          <h2>Events</h2>
+          <p>Stay connected with upcoming programs and live broadcasts.</p>
         </div>
 
-        {loading ? (
-          <div className="loading">Loading events...</div>
-        ) : events.length > 0 ? (
+        <div className="home-event-tabs" role="tablist" aria-label="Event sections">
+          <button type="button" className={activeTab === 'upcoming' ? 'active' : ''} onClick={() => setActiveTab('upcoming')}>
+            Upcoming Events
+          </button>
+          <button type="button" className={activeTab === 'live' ? 'active' : ''} onClick={() => setActiveTab('live')}>
+            Live Events
+          </button>
+        </div>
+
+        {activeTab === 'upcoming' ? (
           <div className="events-grid">
-            {events.map((event) => (
-              <div key={event.id} className="event-card">
-                <div className="event-card__badge">{event.status.charAt(0).toUpperCase() + event.status.slice(1)}</div>
-                <div className="event-card__content">
-                  <h3>{event.name}</h3>
-                  <p className="event-card__description">{event.description}</p>
-                  <div className="event-card__meta">
-                    <span className="event-card__location">
-                      📍 {typeof event.location === 'object' ? event.location.name : event.location}
-                    </span>
-                    <span className="event-card__time">
-                      🕐 {new Date(event.start_time).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
+            <article className="event-card feature-event-card">
+              <img src="/forthcoming.jpg" alt="Upcoming event" />
+              <div className="event-card__content">
+                <h3>Upcoming Events</h3>
+                <p className="event-card__description">Forthcoming programs and services at Redemption City.</p>
               </div>
-            ))}
+            </article>
+            <article className="event-card feature-event-card">
+              <img src="/convention.png" alt="Convention calendar" />
+              <div className="event-card__content">
+                <h3>Convention Calendar</h3>
+                <p className="event-card__description">Convention dates and highlights for planning your visit.</p>
+              </div>
+            </article>
           </div>
         ) : (
-          <div className="no-events">
-            <p>No live events at the moment. Check back soon!</p>
-          </div>
+          <>
+            <div className="events-grid">
+              <article className="event-card feature-event-card">
+                <img src="/youth_week.jpg" alt="Youth Week" />
+                <div className="event-card__content">
+                  <h3>Youth Week</h3>
+                  <p className="event-card__description">Watch the live service or listen along from anywhere.</p>
+                  <div className="live-event-actions">
+                    <a href="https://www.youtube.com/@DoveTelevision" target="_blank" rel="noopener noreferrer" className="primary-action">
+                      Dove TV YouTube
+                    </a>
+                    <a href="https://mixlr.com/" target="_blank" rel="noopener noreferrer" className="secondary-action">
+                      Listen on Mixlr
+                    </a>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {loading ? (
+              <div className="loading">Loading events...</div>
+            ) : events.length > 0 ? (
+              <div className="events-grid">
+                {events.map((event) => (
+                  <div key={event.id} className="event-card">
+                    <div className="event-card__badge">{event.status.charAt(0).toUpperCase() + event.status.slice(1)}</div>
+                    <div className="event-card__content">
+                      <h3>{event.name}</h3>
+                      <p className="event-card__description">{event.description}</p>
+                      <div className="event-card__meta">
+                        <span className="event-card__location">
+                          Location: {event.location_name || event.manual_location || (event.location && typeof event.location === 'object' ? event.location.name : event.location) || 'Location to be announced'}
+                        </span>
+                        <span className="event-card__time">
+                          Time: {new Date(event.start_time).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-events">
+                <p>No live events at the moment. Check back soon!</p>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -124,7 +173,7 @@ export default function Home() {
         <h2>About Redemption City</h2>
         <div className="about-content">
           <p>
-            The Redemption City is a vision to create a smart, technologically-enabled city of faith. It serves as a center 
+            The Redemption City is a vision to create a smart, technologically-enabled city of faith. It serves as a center
             for spiritual growth, community development, and technological innovation.
           </p>
           <p>

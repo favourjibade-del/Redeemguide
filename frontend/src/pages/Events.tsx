@@ -11,6 +11,7 @@ const emptyEvent = {
   event_type: 'service',
   status: 'upcoming',
   location: '',
+  manual_location: '',
   start_time: '',
   end_time: '',
   expected_attendance: '',
@@ -38,6 +39,7 @@ export default function Events() {
   const [filter, setFilter] = useState('upcoming')
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [form, setForm] = useState(emptyEvent)
+  const [locationMode, setLocationMode] = useState<'saved' | 'manual'>('saved')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,16 +101,19 @@ export default function Events() {
       event_type: event.event_type || 'service',
       status: event.status || 'upcoming',
       location: event.location || '',
+      manual_location: event.manual_location || '',
       start_time: toDateTimeLocal(event.start_time),
       end_time: toDateTimeLocal(event.end_time),
       expected_attendance: event.expected_attendance ? String(event.expected_attendance) : '',
       is_free: event.is_free
     })
+    setLocationMode(event.location ? 'saved' : 'manual')
   }
 
   const resetForm = () => {
     setEditingEvent(null)
     setForm(emptyEvent)
+    setLocationMode('saved')
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -116,8 +121,22 @@ export default function Events() {
     setSaving(true)
     setError(null)
 
+    if (locationMode === 'saved' && !form.location) {
+      setError('Choose a saved location or switch to manual location.')
+      setSaving(false)
+      return
+    }
+
+    if (locationMode === 'manual' && !form.manual_location.trim()) {
+      setError('Enter the manual event location.')
+      setSaving(false)
+      return
+    }
+
     const payload = {
       ...form,
+      location: locationMode === 'saved' ? form.location : null,
+      manual_location: locationMode === 'manual' ? form.manual_location.trim() : '',
       start_time: fromDateTimeLocal(form.start_time),
       end_time: fromDateTimeLocal(form.end_time),
       expected_attendance: form.expected_attendance ? Number(form.expected_attendance) : undefined
@@ -185,12 +204,24 @@ export default function Events() {
             </label>
             <label>
               Location
-              <select value={form.location} onChange={(event) => updateField('location', event.target.value)} required>
-                <option value="">Choose location</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>{location.name}</option>
-                ))}
-              </select>
+              <div className="location-mode-toggle">
+                <button type="button" className={locationMode === 'saved' ? 'active' : ''} onClick={() => setLocationMode('saved')}>
+                  Saved
+                </button>
+                <button type="button" className={locationMode === 'manual' ? 'active' : ''} onClick={() => setLocationMode('manual')}>
+                  Manual
+                </button>
+              </div>
+              {locationMode === 'saved' ? (
+                <select value={form.location} onChange={(event) => updateField('location', event.target.value)} required>
+                  <option value="">Choose location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input value={form.manual_location} onChange={(event) => updateField('manual_location', event.target.value)} placeholder="Type event location" required />
+              )}
             </label>
             <label>
               Type
@@ -264,7 +295,7 @@ export default function Events() {
                 <p className="event-time">
                   {new Date(event.start_time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                 </p>
-                <p className="event-location">{event.location_name || event.location}</p>
+                <p className="event-location">{event.location_name || event.manual_location || event.location}</p>
                 {isSuperuser ? (
                   <div className="event-admin-actions">
                     <button type="button" onClick={() => startEditing(event)}>Edit</button>
